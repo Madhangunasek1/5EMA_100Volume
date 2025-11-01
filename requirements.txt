@@ -1,0 +1,10 @@
+upstox-python-sdk
+pandas
+numpy
+selenium
+webdriver-manager
+websockets
+asyncio
+python-dotenv
+protobuf
+grpcio-tools

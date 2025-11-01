@@ -1,0 +1,79 @@
+import upstox_client
+import webbrowser
+import time
+import os
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from urllib.parse import urlparse, parse_qs, urlencode
+from config import API_KEY, API_SECRET, REDIRECT_URI
+
+def get_access_token():
+    """
+    Automates the Upstox login process to get the access token.
+    """
+    api_version = "v2"
+    configuration = upstox_client.Configuration()
+    api_client = upstox_client.ApiClient(configuration)
+    api_instance = upstox_client.LoginApi(api_client)
+
+    # Manually construct the login URL
+    base_url = "https://api.upstox.com"
+    endpoint = "/v2/login/authorization/dialog"
+    params = {
+        "client_id": API_KEY,
+        "redirect_uri": REDIRECT_URI,
+        "response_type": "code"
+    }
+    login_url = f"{base_url}{endpoint}?{urlencode(params)}"
+
+    # Use selenium to automate the login
+    try:
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service)
+        driver.get(login_url)
+
+        # Wait for the user to login and the redirect to happen
+        # The user will have to manually enter their credentials and 2FA
+        print("Please log in to Upstox in the browser window that has been opened.")
+
+        while REDIRECT_URI not in driver.current_url:
+            time.sleep(1)
+
+        # Get the authorization code from the redirected URL
+        parsed_url = urlparse(driver.current_url)
+        query_params = parse_qs(parsed_url.query)
+        code = query_params.get("code", [None])[0]
+
+        if not code:
+            raise Exception("Could not get the authorization code.")
+
+        # Close the browser
+        driver.quit()
+
+        # Get the access token
+        token_response = api_instance.token(
+            api_version=api_version,
+            code=code,
+            client_id=API_KEY,
+            client_secret=API_SECRET,
+            redirect_uri=REDIRECT_URI,
+            grant_type="authorization_code"
+        )
+
+        access_token = token_response.access_token
+
+        if not access_token:
+            raise Exception("Could not get the access token.")
+
+        print("Access token generated successfully.")
+        return access_token
+
+    except Exception as e:
+        print(f"An error occurred during authentication: {e}")
+        return None
+
+if __name__ == "__main__":
+    access_token = get_access_token()
+    if access_token:
+        print(f"Access Token: {access_token}")
