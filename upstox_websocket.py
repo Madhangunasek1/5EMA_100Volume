@@ -2,8 +2,6 @@ import upstox_client
 import asyncio
 import pandas as pd
 import logging
-from upstox_client.feeder.proto import MarketDataFeedV3_pb2 as pb
-from google.protobuf import json_format
 from config import API_KEY, API_SECRET, REDIRECT_URI
 from upstox_auth import get_access_token
 
@@ -43,12 +41,8 @@ class UpstoxWebSocket:
         self.subscribe()
 
     def on_message(self, message):
-        # Decode the protobuf message
-        market_data_feed = pb.FeedResponse()
-        json_format.ParseDict(message, market_data_feed)
-
-        # Pass the decoded message to the data handler
-        self.data_handler.process_tick(market_data_feed)
+        # Pass the dictionary to the data handler
+        self.data_handler.process_tick(message)
 
     def on_error(self, error):
         logging.error(f"WebSocket error: {error}")

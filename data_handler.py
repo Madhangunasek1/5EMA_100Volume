@@ -2,7 +2,6 @@ import pandas as pd
 import os
 import logging
 from datetime import datetime
-from upstox_client.feeder.proto import MarketDataFeedV3_pb2 as pb
 
 class DataHandler:
     def __init__(self, instrument_keys, strategy_callback=None, tick_callback=None):
@@ -37,18 +36,18 @@ class DataHandler:
         if self.tick_callback:
             self.tick_callback(market_data_feed)
 
-        if market_data_feed.type == pb.Type.live_feed or market_data_feed.type == pb.Type.initial_feed:
-            for instrument_key, feed in market_data_feed.feeds.items():
-                if feed.HasField("ltpc"):
-                    self._build_candle_from_tick(instrument_key, feed.ltpc)
+        if market_data_feed.get('type') == 'live_feed' or market_data_feed.get('type') == 'initial_feed':
+            for instrument_key, feed in market_data_feed.get('feeds', {}).items():
+                if 'ltpc' in feed:
+                    self._build_candle_from_tick(instrument_key, feed['ltpc'])
 
     def _build_candle_from_tick(self, instrument_key, ltpc_data):
         try:
-            ltp = ltpc_data.ltp
-            volume = ltpc_data.ltq
+            ltp = ltpc_data.get('ltp')
+            volume = ltpc_data.get('ltq')
 
             # Use exchange timestamp if available, otherwise use system time
-            timestamp_ms = ltpc_data.ltt
+            timestamp_ms = ltpc_data.get('ltt')
             if timestamp_ms:
                 timestamp = pd.to_datetime(timestamp_ms, unit='ms')
             else:
