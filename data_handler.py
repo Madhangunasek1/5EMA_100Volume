@@ -37,7 +37,7 @@ class DataHandler:
         if self.tick_callback:
             self.tick_callback(market_data_feed)
 
-        if market_data_feed.type == pb.FeedType.live_feed:
+        if market_data_feed.type == pb.Type.live_feed or market_data_feed.type == pb.Type.initial_feed:
             for instrument_key, feed in market_data_feed.feeds.items():
                 if feed.HasField("ltpc"):
                     self._build_candle_from_tick(instrument_key, feed.ltpc)
