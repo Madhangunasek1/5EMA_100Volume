@@ -2,7 +2,7 @@ import upstox_client
 import asyncio
 import pandas as pd
 import logging
-import MarketDataFeed_pb2 as pb
+from upstox_client.feeder.proto import MarketDataFeedV3_pb2 as pb
 from config import API_KEY, API_SECRET, REDIRECT_URI
 from upstox_auth import get_access_token
 

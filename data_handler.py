@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import logging
 from datetime import datetime
-import MarketDataFeed_pb2 as pb
+from upstox_client.feeder.proto import MarketDataFeedV3_pb2 as pb
 
 class DataHandler:
     def __init__(self, instrument_keys, strategy_callback=None, tick_callback=None):
