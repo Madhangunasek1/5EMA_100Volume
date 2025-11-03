@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import pandas as pd
 from upstox_auth import get_access_token
 from upstox_websocket import UpstoxWebSocket
 from data_handler import DataHandler
@@ -27,12 +28,14 @@ class MainApp:
         self.order_manager = OrderManager(self.access_token)
         self.strategy = TradingStrategy(self.order_manager)
 
-        temp_ws = UpstoxWebSocket(self.access_token, None)
-        instrument_keys = temp_ws.instrument_keys
+        stocks_df = pd.read_csv('stocks.csv')
+        instrument_keys = [f"NSE_EQ|{isin}" for isin in stocks_df['ISIN']]
+        instrument_to_symbol = {f"NSE_EQ|{row['ISIN']}": row['SYMBOL'] for index, row in stocks_df.iterrows()}
 
         self.data_handler = DataHandler(
             instrument_keys=instrument_keys,
             access_token=self.access_token,
+            instrument_to_symbol=instrument_to_symbol,
             strategy_callback=self.strategy.run_strategy,
             tick_callback=self.strategy.check_for_sell_signal
         )

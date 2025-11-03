@@ -5,9 +5,10 @@ from datetime import datetime, timedelta
 import upstox_client
 
 class DataHandler:
-    def __init__(self, instrument_keys, access_token, strategy_callback=None, tick_callback=None):
+    def __init__(self, instrument_keys, access_token, instrument_to_symbol, strategy_callback=None, tick_callback=None):
         self.instrument_keys = instrument_keys
         self.access_token = access_token
+        self.instrument_to_symbol = instrument_to_symbol
         self.strategy_callback = strategy_callback
         self.tick_callback = tick_callback
         self.data_dir = "candle_data"
@@ -17,7 +18,7 @@ class DataHandler:
         self.current_candle = {key: {} for key in instrument_keys}
 
     def _get_safe_filename(self, instrument_key):
-        return instrument_key.replace('|', '-')
+        return self.instrument_to_symbol.get(instrument_key, instrument_key.replace('|', '-'))
 
     def _fetch_historical_data(self, instrument_key):
         """Fetches historical data from Upstox API."""
