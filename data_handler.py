@@ -27,12 +27,21 @@ class DataHandler:
             api_instance = upstox_client.HistoryApi(upstox_client.ApiClient(configuration))
 
             to_date = datetime.now().strftime('%Y-%m-%d')
-            from_date = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d') # Fetch more than needed to be safe
+            from_date = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d')
 
-            api_response = api_instance.get_historical_candle_data1(instrument_key, '1minute', to_date, from_date, "v2")
+            # Fetch historical data
+            api_response_historical = api_instance.get_historical_candle_data1(instrument_key, '1minute', to_date, from_date, "v2")
 
-            candles = api_response.data.candles
-            df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'oi'])
+            # Fetch intraday data for today
+            api_response_intraday = api_instance.get_intra_day_candle_data(instrument_key, '1minute', "v2")
+
+            candles_historical = api_response_historical.data.candles
+            candles_intraday = api_response_intraday.data.candles
+
+            df_historical = pd.DataFrame(candles_historical, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'oi'])
+            df_intraday = pd.DataFrame(candles_intraday, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'oi'])
+
+            df = pd.concat([df_historical, df_intraday])
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df.set_index('timestamp', inplace=True)
 
