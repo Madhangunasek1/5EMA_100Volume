@@ -44,6 +44,7 @@ class DataHandler:
             df = pd.concat([df_historical, df_intraday])
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df.set_index('timestamp', inplace=True)
+            df = df[~df.index.duplicated(keep='last')]
 
             # Resample to 5-minute candles
             ohlc_dict = {
@@ -53,7 +54,7 @@ class DataHandler:
                 'close': 'last',
                 'volume': 'sum'
             }
-            df = df.resample('5min').apply(ohlc_dict).dropna()
+            df = df.resample('5T').apply(ohlc_dict).dropna()
 
             df = df.iloc[-400:] # Keep the last 400 candles
             filepath = os.path.join(self.data_dir, f"{self._get_safe_filename(instrument_key)}.csv")
