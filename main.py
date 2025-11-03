@@ -32,6 +32,7 @@ class MainApp:
 
         self.data_handler = DataHandler(
             instrument_keys=instrument_keys,
+            access_token=self.access_token,
             strategy_callback=self.strategy.run_strategy,
             tick_callback=self.strategy.check_for_sell_signal
         )

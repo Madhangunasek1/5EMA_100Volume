@@ -1,11 +1,13 @@
 import pandas as pd
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+import upstox_client
 
 class DataHandler:
-    def __init__(self, instrument_keys, strategy_callback=None, tick_callback=None):
+    def __init__(self, instrument_keys, access_token, strategy_callback=None, tick_callback=None):
         self.instrument_keys = instrument_keys
+        self.access_token = access_token
         self.strategy_callback = strategy_callback
         self.tick_callback = tick_callback
         self.data_dir = "candle_data"
@@ -14,19 +16,43 @@ class DataHandler:
         self.candle_data = {key: self._load_historical_data(key) for key in instrument_keys}
         self.current_candle = {key: {} for key in instrument_keys}
 
+    def _fetch_historical_data(self, instrument_key):
+        """Fetches historical data from Upstox API."""
+        try:
+            configuration = upstox_client.Configuration()
+            configuration.access_token = self.access_token
+            api_instance = upstox_client.HistoryApi(upstox_client.ApiClient(configuration))
+
+            to_date = datetime.now().strftime('%Y-%m-%d')
+            from_date = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d') # Fetch more than needed to be safe
+
+            api_response = api_instance.get_historical_candle_data1(instrument_key, '5minute', to_date, from_date)
+
+            candles = api_response.data.candles
+            df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'oi'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df.set_index('timestamp', inplace=True)
+            df = df.iloc[-400:] # Keep the last 400 candles
+            self._save_data(instrument_key)
+            return df
+
+        except Exception as e:
+            logging.error(f"Error fetching historical data for {instrument_key}: {e}")
+            return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
+
     def _load_historical_data(self, instrument_key):
         filepath = os.path.join(self.data_dir, f"{instrument_key}.csv")
         if os.path.exists(filepath):
             try:
                 df = pd.read_csv(filepath, index_col='timestamp', parse_dates=True)
-                logging.info(f"Loaded {len(df)} historical candles for {instrument_key}")
-                return df
+                if len(df) >= 400:
+                    logging.info(f"Loaded {len(df)} historical candles for {instrument_key}")
+                    return df
             except Exception as e:
                 logging.error(f"Error loading historical data for {instrument_key}: {e}")
-                return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
-        else:
-            logging.warning(f"No historical data found for {instrument_key}. Starting fresh.")
-            return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
+
+        logging.warning(f"No sufficient historical data found for {instrument_key}. Fetching from API.")
+        return self._fetch_historical_data(instrument_key)
 
     def _save_data(self, instrument_key):
         filepath = os.path.join(self.data_dir, f"{instrument_key}.csv")
