@@ -41,7 +41,7 @@ class DataHandler:
                 'close': 'last',
                 'volume': 'sum'
             }
-            df = df.resample('5T').apply(ohlc_dict).dropna()
+            df = df.resample('5min').apply(ohlc_dict).dropna()
 
             df = df.iloc[-400:] # Keep the last 400 candles
             self._save_data(instrument_key)
