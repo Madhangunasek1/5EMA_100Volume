@@ -26,12 +26,23 @@ class DataHandler:
             to_date = datetime.now().strftime('%Y-%m-%d')
             from_date = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d') # Fetch more than needed to be safe
 
-            api_response = api_instance.get_historical_candle_data1(instrument_key, '5minute', to_date, from_date, "v2")
+            api_response = api_instance.get_historical_candle_data1(instrument_key, '1minute', to_date, from_date, "v2")
 
             candles = api_response.data.candles
             df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'oi'])
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df.set_index('timestamp', inplace=True)
+
+            # Resample to 5-minute candles
+            ohlc_dict = {
+                'open': 'first',
+                'high': 'max',
+                'low': 'min',
+                'close': 'last',
+                'volume': 'sum'
+            }
+            df = df.resample('5T').apply(ohlc_dict).dropna()
+
             df = df.iloc[-400:] # Keep the last 400 candles
             self._save_data(instrument_key)
             return df
