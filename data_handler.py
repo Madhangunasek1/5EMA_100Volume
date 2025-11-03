@@ -26,7 +26,7 @@ class DataHandler:
             to_date = datetime.now().strftime('%Y-%m-%d')
             from_date = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d') # Fetch more than needed to be safe
 
-            api_response = api_instance.get_historical_candle_data1(instrument_key, '5minute', to_date, from_date)
+            api_response = api_instance.get_historical_candle_data1(instrument_key, '5minute', to_date, from_date, "v2")
 
             candles = api_response.data.candles
             df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'oi'])
