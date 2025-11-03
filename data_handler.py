@@ -16,6 +16,9 @@ class DataHandler:
         self.candle_data = {key: self._load_historical_data(key) for key in instrument_keys}
         self.current_candle = {key: {} for key in instrument_keys}
 
+    def _get_safe_filename(self, instrument_key):
+        return instrument_key.replace('|', '-')
+
     def _fetch_historical_data(self, instrument_key):
         """Fetches historical data from Upstox API."""
         try:
@@ -44,7 +47,7 @@ class DataHandler:
             df = df.resample('5T').apply(ohlc_dict).dropna()
 
             df = df.iloc[-400:] # Keep the last 400 candles
-            filepath = os.path.join(self.data_dir, f"{instrument_key}.csv")
+            filepath = os.path.join(self.data_dir, f"{self._get_safe_filename(instrument_key)}.csv")
             df.to_csv(filepath)
             return df
 
@@ -53,7 +56,7 @@ class DataHandler:
             return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
 
     def _load_historical_data(self, instrument_key):
-        filepath = os.path.join(self.data_dir, f"{instrument_key}.csv")
+        filepath = os.path.join(self.data_dir, f"{self._get_safe_filename(instrument_key)}.csv")
         if os.path.exists(filepath):
             try:
                 df = pd.read_csv(filepath, index_col='timestamp', parse_dates=True)
@@ -67,7 +70,7 @@ class DataHandler:
         return self._fetch_historical_data(instrument_key)
 
     def _save_data(self, instrument_key):
-        filepath = os.path.join(self.data_dir, f"{instrument_key}.csv")
+        filepath = os.path.join(self.data_dir, f"{self._get_safe_filename(instrument_key)}.csv")
         self.candle_data[instrument_key].to_csv(filepath)
 
     def process_tick(self, market_data_feed):
