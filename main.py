@@ -39,7 +39,7 @@ class MainApp:
             strategy_callback=self.strategy.run_strategy,
             tick_callback=self.strategy.check_for_sell_signal
         )
-        self.websocket = UpstoxWebSocket(self.access_token, self.data_handler)
+        self.websocket = UpstoxWebSocket(self.access_token, self.data_handler, instrument_keys)
 
         logging.info("Connecting to the WebSocket...")
         await self.websocket.connect()
