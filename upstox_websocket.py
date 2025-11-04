@@ -38,7 +38,6 @@ class UpstoxWebSocket:
 
     def on_open(self):
         logging.info("WebSocket connection opened.")
-        self.subscribe()
 
     def on_message(self, message):
         # Pass the dictionary to the data handler
@@ -50,10 +49,6 @@ class UpstoxWebSocket:
     def on_close(self):
         logging.info("WebSocket connection closed.")
 
-    def subscribe(self):
-        if self.ws and self.instrument_keys:
-            self.ws.subscribe(self.instrument_keys, "full")
-
     async def connect(self):
         """
         Connects to the Upstox WebSocket API and starts streaming data.
@@ -61,7 +56,7 @@ class UpstoxWebSocket:
         configuration = self._get_api_configuration()
         api_client = upstox_client.ApiClient(configuration)
 
-        self.ws = upstox_client.MarketDataStreamerV3(api_client)
+        self.ws = upstox_client.MarketDataStreamerV3(api_client, self.instrument_keys, "full")
         self.ws.on("open", self.on_open)
         self.ws.on("message", self.on_message)
         self.ws.on("error", self.on_error)
