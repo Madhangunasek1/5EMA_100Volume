@@ -23,9 +23,8 @@ class UpstoxWebSocket:
             'Accept': 'application/json',
             'Authorization': f'Bearer {self.access_token}'
         }
-        url = 'https://api.upstox.com/v2/feed/market-data-feed/authorize'
+        url = 'https://api.upstox.com/v3/feed/market-data-feed/authorize'
         api_response = requests.get(url=url, headers=headers)
-        print(api_response.json())
         return api_response.json()
 
     def _decode_protobuf(self, buffer):
