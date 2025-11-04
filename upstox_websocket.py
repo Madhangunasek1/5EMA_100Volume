@@ -1,9 +1,11 @@
-import upstox_client
 import asyncio
-import pandas as pd
+import json
+import ssl
+import websockets
 import logging
-from config import API_KEY, API_SECRET, REDIRECT_URI
-from upstox_auth import get_access_token
+import requests
+from google.protobuf.json_format import MessageToDict
+from upstox_client.feeder.proto import MarketDataFeedV3_pb2 as pb
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -15,44 +17,51 @@ class UpstoxWebSocket:
         self.instrument_keys = instrument_keys
         self.ws = None
 
-    def _get_api_configuration(self):
-        """
-        Returns the API configuration object.
-        """
-        configuration = upstox_client.Configuration()
-        configuration.access_token = self.access_token
-        return configuration
+    def _get_market_data_feed_authorize(self):
+        """Get authorization for market data feed."""
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': f'Bearer {self.access_token}'
+        }
+        url = 'https://api.upstox.com/v2/feed/market-data-feed/authorize'
+        api_response = requests.get(url=url, headers=headers)
+        print(api_response.json())
+        return api_response.json()
 
-    def on_open(self):
-        logging.info("WebSocket connection opened.")
-        self.subscribe()
-
-    def on_message(self, message):
-        # Pass the dictionary to the data handler
-        self.data_handler.process_tick(message)
-
-    def on_error(self, error):
-        logging.error(f"WebSocket error: {error}")
-
-    def on_close(self):
-        logging.info("WebSocket connection closed.")
-
-    def subscribe(self):
-        if self.ws and self.instrument_keys:
-            self.ws.subscribe(self.instrument_keys, "full")
+    def _decode_protobuf(self, buffer):
+        """Decode protobuf message."""
+        feed_response = pb.FeedResponse()
+        feed_response.ParseFromString(buffer)
+        return feed_response
 
     async def connect(self):
-        """
-        Connects to the Upstox WebSocket API and starts streaming data.
-        """
-        configuration = self._get_api_configuration()
-        api_client = upstox_client.ApiClient(configuration)
+        """Fetch market data using WebSocket and print it."""
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
 
-        self.ws = upstox_client.MarketDataStreamerV3(api_client)
-        self.ws.on("open", self.on_open)
-        self.ws.on("message", self.on_message)
-        self.ws.on("error", self.on_error)
-        self.ws.on("close", self.on_close)
+        response = self._get_market_data_feed_authorize()
 
-        # This will run in a separate thread
-        self.ws.connect()
+        async with websockets.connect(response["data"]["authorized_redirect_uri"], ssl=ssl_context) as websocket:
+            logging.info('Connection established')
+            self.ws = websocket
+
+            await asyncio.sleep(1)
+
+            data = {
+                "guid": "someguid",
+                "method": "sub",
+                "data": {
+                    "mode": "full",
+                    "instrumentKeys": self.instrument_keys
+                }
+            }
+
+            binary_data = json.dumps(data).encode('utf-8')
+            await self.ws.send(binary_data)
+
+            while True:
+                message = await self.ws.recv()
+                decoded_data = self._decode_protobuf(message)
+                data_dict = MessageToDict(decoded_data)
+                self.data_handler.process_tick(data_dict)

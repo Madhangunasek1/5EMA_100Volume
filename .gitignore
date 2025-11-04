@@ -110,3 +110,6 @@ dmypy.json
 
 # Token file
 token.json
+
+# Candle data
+candle_data/
