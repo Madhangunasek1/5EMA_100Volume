@@ -9,24 +9,11 @@ from upstox_auth import get_access_token
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class UpstoxWebSocket:
-    def __init__(self, access_token, data_handler):
+    def __init__(self, access_token, data_handler, instrument_keys):
         self.access_token = access_token
         self.data_handler = data_handler
-        self.instrument_keys = self._get_instrument_keys()
+        self.instrument_keys = instrument_keys
         self.ws = None
-
-    def _get_instrument_keys(self):
-        """
-        Reads the stocks.csv file and gets the instrument keys for the symbols.
-        """
-        try:
-            stocks_df = pd.read_csv('stocks.csv')
-            instrument_keys = [f"NSE_EQ|{isin}" for isin in stocks_df['ISIN']]
-            logging.info(f"Instrument keys to subscribe: {instrument_keys}")
-            return instrument_keys
-        except Exception as e:
-            logging.error(f"Error getting instrument keys: {e}")
-            return []
 
     def _get_api_configuration(self):
         """
@@ -38,6 +25,7 @@ class UpstoxWebSocket:
 
     def on_open(self):
         logging.info("WebSocket connection opened.")
+        self.subscribe()
 
     def on_message(self, message):
         # Pass the dictionary to the data handler
@@ -49,6 +37,10 @@ class UpstoxWebSocket:
     def on_close(self):
         logging.info("WebSocket connection closed.")
 
+    def subscribe(self):
+        if self.ws and self.instrument_keys:
+            self.ws.subscribe(self.instrument_keys, "full")
+
     async def connect(self):
         """
         Connects to the Upstox WebSocket API and starts streaming data.
@@ -56,7 +48,7 @@ class UpstoxWebSocket:
         configuration = self._get_api_configuration()
         api_client = upstox_client.ApiClient(configuration)
 
-        self.ws = upstox_client.MarketDataStreamerV3(api_client, self.instrument_keys, "full")
+        self.ws = upstox_client.MarketDataStreamerV3(api_client)
         self.ws.on("open", self.on_open)
         self.ws.on("message", self.on_message)
         self.ws.on("error", self.on_error)
