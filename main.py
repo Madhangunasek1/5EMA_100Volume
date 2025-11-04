@@ -30,7 +30,7 @@ class MainApp:
 
         stocks_df = pd.read_csv('stocks.csv')
         instrument_keys = [f"NSE_EQ|{isin}" for isin in stocks_df['ISIN']]
-        instrument_to_symbol = {f"NSE_EQ|{row['ISIN']}": row['SYMBOL'] for index, row in stocks_df.iterrows()}
+        instrument_to_symbol = {f"NSE_EQ|{row['ISIN']}": row['symbol'] for index, row in stocks_df.iterrows()}
 
         self.data_handler = DataHandler(
             instrument_keys=instrument_keys,
