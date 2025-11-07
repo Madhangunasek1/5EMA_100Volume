@@ -6,9 +6,10 @@ from upstox_websocket import UpstoxWebSocket
 from data_handler import DataHandler
 from strategy import TradingStrategy
 from order_manager import OrderManager
-from historical_loader import preload_candles
+from historical_loader import preload_candles  # if you use preloading
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 class MainApp:
     def __init__(self):
@@ -19,56 +20,67 @@ class MainApp:
         self.websocket = None
 
     async def run(self):
-        logging.info("Starting the trading application.")
+        logging.info("🚀 Starting the trading application")
 
-        # Step 1: get access token
+        # ✅ Get Access Token
         self.access_token = get_access_token()
         if not self.access_token:
-            logging.error("Failed to get access token. Exiting.")
+            logging.error("❌ Failed to get access token.")
             return
 
-        # Step 2: load your stock symbols
+        # ✅ Load stock list (ISIN-based)
         stocks_df = pd.read_csv("stocks.csv")
-        instruments_list = stocks_df['instrument_key'].tolist()
-        logging.info(f"📦 Loaded {len(instruments_list)} instruments from CSV.")
 
-        # Step 3: preload last 400 candles for all instruments
-        from historical_loader import preload_candles
-        initial_data = preload_candles(self.access_token, instruments_list)
+        # Convert ISINs into Upstox instrument keys
+        instrument_keys = [f"NSE_EQ|{row['ISIN']}" for index, row in stocks_df.iterrows()]
+        instrument_to_symbol = {
+            f"NSE_EQ|{row['ISIN']}": row['symbol'] for index, row in stocks_df.iterrows()
+        }
 
-        # Step 4: Initialize OrderManager, Strategy, DataHandler
+        logging.info(f"✅ Instruments to subscribe: {instrument_keys}")
+
+        # ✅ Initialize order manager & strategy
         self.order_manager = OrderManager(self.access_token)
         self.strategy = TradingStrategy(self.order_manager)
 
-        from data_handler import DataHandler
+        # ✅ Preload candles (optional, if using historical_loader)
+        try:
+            initial_data = preload_candles(self.access_token, instrument_keys)
+            logging.info("📊 Preloaded last 400 candles for each instrument.")
+        except Exception as e:
+            logging.warning(f"⚠️ Could not preload candles: {e}")
+            initial_data = None
+
+        # ✅ Initialize data handler
         self.data_handler = DataHandler(
             access_token=self.access_token,
-            instrument_keys=instruments_list,
-            historical_data=initial_data,  # ✅ preloaded history
+            instrument_keys=instrument_keys,
+            instrument_to_symbol=instrument_to_symbol,
+            historical_data=initial_data,
             tick_callback=None,
             strategy_callback=self.strategy.on_new_candle
         )
 
-        # Step 5: initialize and connect websocket
-        from upstox_websocket import UpstoxWebSocket
-        self.websocket = UpstoxWebSocket(
-            access_token=self.access_token,
-            instrument_keys=instruments_list,
-            data_handler=self.data_handler
+        # ✅ Connect to WebSocket
+        self.websocket = UpstoxWebsocket(
+            self.access_token,
+            self.data_handler,
+            instrument_keys
         )
 
-        logging.info("🚀 All systems ready. Starting live data stream...")
+        logging.info("📡 Connecting to the WebSocket...")
         await self.websocket.connect()
 
-        # Keep the main thread alive
+        # Keep main thread alive
         while True:
             await asyncio.sleep(1)
+
 
 if __name__ == "__main__":
     app = MainApp()
     try:
         asyncio.run(app.run())
     except KeyboardInterrupt:
-        logging.info("Application stopped by user.")
+        logging.warning("🛑 Application stopped by user.")
     except Exception as e:
-        logging.error(f"An unexpected error occurred in the main application: {e}", exc_info=True)
+        logging.error("❌ An unexpected error occurred in the main application.", exc_info=True)
