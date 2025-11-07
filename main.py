@@ -62,7 +62,7 @@ class MainApp:
         )
 
         # ✅ Connect to WebSocket
-        self.websocket = UpstoxWebsocket(
+        self.websocket = UpstoxWebSocket(
             self.access_token,
             self.data_handler,
             instrument_keys

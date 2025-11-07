@@ -69,7 +69,7 @@ def get_continuous_candles(api, instrument_key, unit="minutes", interval="5", tz
     """Fetch and combine Historical (till yesterday) + Intraday (today)."""
     today = datetime.now(ZoneInfo(tz)).date()
     yday = today - timedelta(days=1)
-    start = today - timedelta(days=40)  # ~400 candles if 5-min × 75/day
+    start = today - timedelta(days=6)  # ~400 candles if 5-min × 75/day
     frames = []
 
     # Historical till yesterday

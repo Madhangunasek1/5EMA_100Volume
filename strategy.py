@@ -36,6 +36,9 @@ class TradingStrategy:
 
         latest_candle = candle_data.iloc[-1]
 
+        # ✅ Add this line below
+        logging.info(f"🎯 Strategy evaluated for {instrument_key} | Last Close={latest_candle['close']}")
+        
         condition1_met = (
             latest_candle['low'] > latest_candle['5sma'] and
             latest_candle['volume'] > 5 * latest_candle['100vma']
@@ -99,3 +102,13 @@ class TradingStrategy:
             df = pd.DataFrame(self.signals)
             df.to_csv("strategy_results.csv", index=False)
             logging.info("Strategy results saved to strategy_results.csv")
+    
+    def on_new_candle(self, instrument_key, candle_data):
+        """
+        This method is called every time a new 5-minute candle is completed.
+        """
+        try:
+            logging.info(f"🕐 New candle received for {instrument_key} | total candles: {len(candle_data)}")
+            self.run_strategy(instrument_key, candle_data)
+        except Exception as e:
+            logging.error(f"❌ Error in on_new_candle for {instrument_key}: {e}", exc_info=True)
