@@ -6,6 +6,7 @@ from upstox_websocket import UpstoxWebSocket
 from data_handler import DataHandler
 from strategy import TradingStrategy
 from order_manager import OrderManager
+from historical_loader import preload_candles
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -18,30 +19,45 @@ class MainApp:
         self.websocket = None
 
     async def run(self):
-        logging.info("Starting the trading application...")
+        logging.info("Starting the trading application.")
 
+        # Step 1: get access token
         self.access_token = get_access_token()
         if not self.access_token:
             logging.error("Failed to get access token. Exiting.")
             return
 
+        # Step 2: load your stock symbols
+        stocks_df = pd.read_csv("stocks.csv")
+        instruments_list = stocks_df['instrument_key'].tolist()
+        logging.info(f"📦 Loaded {len(instruments_list)} instruments from CSV.")
+
+        # Step 3: preload last 400 candles for all instruments
+        from historical_loader import preload_candles
+        initial_data = preload_candles(self.access_token, instruments_list)
+
+        # Step 4: Initialize OrderManager, Strategy, DataHandler
         self.order_manager = OrderManager(self.access_token)
         self.strategy = TradingStrategy(self.order_manager)
 
-        stocks_df = pd.read_csv('stocks.csv')
-        instrument_keys = [f"NSE_EQ|{isin}" for isin in stocks_df['ISIN']]
-        instrument_to_symbol = {f"NSE_EQ|{row['ISIN']}": row['symbol'] for index, row in stocks_df.iterrows()}
-
+        from data_handler import DataHandler
         self.data_handler = DataHandler(
-            instrument_keys=instrument_keys,
             access_token=self.access_token,
-            instrument_to_symbol=instrument_to_symbol,
-            strategy_callback=self.strategy.run_strategy,
-            tick_callback=self.strategy.check_for_sell_signal
+            instrument_keys=instruments_list,
+            historical_data=initial_data,  # ✅ preloaded history
+            tick_callback=None,
+            strategy_callback=self.strategy.on_new_candle
         )
-        self.websocket = UpstoxWebSocket(self.access_token, self.data_handler, instrument_keys)
 
-        logging.info("Connecting to the WebSocket...")
+        # Step 5: initialize and connect websocket
+        from upstox_websocket import UpstoxWebSocket
+        self.websocket = UpstoxWebSocket(
+            access_token=self.access_token,
+            instrument_keys=instruments_list,
+            data_handler=self.data_handler
+        )
+
+        logging.info("🚀 All systems ready. Starting live data stream...")
         await self.websocket.connect()
 
         # Keep the main thread alive

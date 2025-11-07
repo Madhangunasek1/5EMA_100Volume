@@ -59,8 +59,11 @@ class UpstoxWebSocket:
             binary_data = json.dumps(data).encode('utf-8')
             await self.ws.send(binary_data)
 
+            logging.info(f"Subscribed to instruments: {self.instrument_keys}")
+            
             while True:
                 message = await self.ws.recv()
                 decoded_data = self._decode_protobuf(message)
                 data_dict = MessageToDict(decoded_data)
+                logging.info(f"Received data: {data_dict}")
                 self.data_handler.process_tick(data_dict)
